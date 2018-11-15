@@ -1,0 +1,186 @@
+---
+- name: Add ems legacy public path env var to bashrc.
+  lineinfile:
+    dest: /home/vagrant/.bashrc
+    state: present
+    regexp: '^export INNOVED_PUBLIC_PATH='
+    line: export INNOVED_PUBLIC_PATH=/vagrant/public
+
+- name: Add ems legacy config path env var to bashrc.
+  lineinfile:
+    dest: /home/vagrant/.bashrc
+    state: present
+    regexp: '^export INNOVED_CONFIG_PATH='
+    line: export INNOVED_CONFIG_PATH=/vagrant/config
+
+- name: Add ems legacy data path env var to bashrc.
+  lineinfile:
+    dest: /home/vagrant/.bashrc
+    state: present
+    regexp: '^export INNOVED_DATA_PATH='
+    line: export INNOVED_DATA_PATH=/vagrant/data
+
+- name: Add ems legacy code path env var to bashrc.
+  lineinfile:
+    dest: /home/vagrant/.bashrc
+    state: present
+    regexp: '^export INNOVED_CODE_PATH='
+    line: export INNOVED_CODE_PATH=/vagrant/src
+
+- name: Add ems laravel path env var to bashrc.
+  lineinfile:
+    dest: /home/vagrant/.bashrc
+    state: present
+    regexp: '^export INNOVED_LARAVEL_PATH='
+    line: export INNOVED_LARAVEL_PATH=/vagrant/api/laravel
+
+- name: Add ems laravel environment env var to bashrc.
+  lineinfile:
+    dest: /home/vagrant/.bashrc
+    state: present
+    regexp: '^export LARAVEL_ENVIRONMENT='
+    line: export LARAVEL_ENVIRONMENT=development
+
+- name: Add dos2unix for runArtisanCommand.sh to bashrc.
+  lineinfile:
+    dest: /home/vagrant/.bashrc
+    state: present
+    line: dos2unix /vagrant/vagrant/tools/runArtisanCommand.sh -q >> /dev/null 2>&1
+
+- name: Add dos2unix for importDatabase.sh to bashrc.
+  lineinfile:
+    dest: /home/vagrant/.bashrc
+    state: present
+    line: dos2unix /vagrant/vagrant/tools/importDatabase.sh -q >> /dev/null 2>&1
+
+- name: modify grub to improve boot time
+  lineinfile:
+    dest: /boot/grub/grub.cfg
+    state: present
+    regexp: 'set timeout=[1-9]'
+    line: set timeout=3
+
+- name: Add {customer}.local.vm and {customer}.local.dev to /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    state: present
+    line: "127.0.0.1 {{ item.name }}.local.vm"
+  with_items: "{{ mysql_databases }}"
+
+- name: Copy Xdebug config into place
+  copy:
+    src: templates/xdebug.ini
+    dest: /etc/php/7.1/mods-available/xdebug.ini
+
+- name: Copy Laravel development configs into place
+  shell: cp -r /vagrant/api/laravel/app/config/suggested_base_development/* /vagrant/api/laravel/app/config/development/
+  args:
+    chdir: /vagrant/api/laravel/app/config/
+
+- name: Copy vle development configs into place
+  shell: cp -r /vagrant/config/suggested_base_development/* /vagrant/config/development/
+  args:
+    chdir: /vagrant/config/
+
+- name: Add /vagrant/vagrant/tools to the $PATH
+  lineinfile:
+    path: "/home/vagrant/.bashrc"
+    state: present
+    line: 'export PATH=$PATH:/vagrant/vagrant/tools'
+
+- name: Set permissions of 0775 on the runArtisanCommand.sh
+  file:
+    path: "/vagrant/vagrant/tools/runArtisanCommand.sh"
+    mode: 0775
+
+- name: Set permissions of 0775 on the importDatabase.sh
+  file:
+    path: "/vagrant/vagrant/tools/importDatabase.sh"
+    mode: 0775
+
+- name: Allow sudo usage without entering a password everytime
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+
+- name: Make sure /vagrant/api/laravel/app/storage has enough permissions
+  shell: sudo chmod -R 775 /vagrant/api/laravel/app/storage
+  args:
+    chdir: /vagrant/api/laravel/app/
+
+- name: modify apache2 to run as vagrant user
+  lineinfile:
+    dest: /etc/apache2/envvars
+    state: present
+    regexp: '^export APACHE_RUN_USER='
+    line: export APACHE_RUN_USER=vagrant
+
+- name: modify apache2 to run as vagrant group
+  lineinfile:
+    dest: /etc/apache2/envvars
+    state: present
+    regexp: '^export APACHE_RUN_GROUP='
+    line: export APACHE_RUN_GROUP=vagrant
+
+- name: modify grub to improve boot time
+  lineinfile:
+    dest: /boot/grub/grub.cfg
+    state: present
+    regexp: 'set timeout=[1-9]'
+    line: set timeout=3
+
+- name: modify php-fpm pool to run as vagrant user
+  lineinfile:
+    dest: /etc/php/7.1/fpm/pool.d/www.conf
+    state: present
+    regexp: '^user ='
+    line: user = vagrant
+
+- name: modify php-fpm pool to run as vagrant group
+  lineinfile:
+    dest: /etc/php/7.1/fpm/pool.d/www.conf
+    state: present
+    regexp: '^group ='
+    line: group = vagrant
+
+- name: modify php-fpm pool to listen as vagrant user
+  lineinfile:
+    dest: /etc/php/7.1/fpm/pool.d/www.conf
+    state: present
+    regexp: '^listen.owner ='
+    line: listen.owner = vagrant
+
+- name: modify php-fpm pool to listen as vagrant group
+  lineinfile:
+    dest: /etc/php/7.1/fpm/pool.d/www.conf
+    state: present
+    regexp: '^listen.group ='
+    line: listen.group = vagrant
+
+- name: Composer Install
+  command: /usr/local/bin/composer install
+  args:
+    chdir: /vagrant/api/laravel/
+  become: true
+  become_user: vagrant
+
+- name: symlink laravel folder to home
+  file:
+    src: /vagrant/api/laravel
+    dest: /home/vagrant/laravel
+    state: link
+
+- name: symlink ad-hoc folder to home
+  file:
+    src: /vagrant/ad-hoc
+    dest: /home/vagrant/ad-hoc
+    state: link
+
+- service:
+    name: php7.1-fpm
+    state: restarted
+
+- service:
+    name: apache2
+    state: restarted
