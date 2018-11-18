@@ -39,8 +39,8 @@ Vagrant.configure("2") do |config|
   config.vm.box = "yk0/ubuntu-xenial"
   config.vm.hostname = vmconfigFile_hostName
 
-  config.vm.define :default do |innoved|
-    innoved.vm.network :private_network, :ip => vmconfigFile_ipAddress
+  config.vm.define :cv do |cv|
+    cv.vm.network :private_network, :ip => vmconfigFile_ipAddress
   end
 
   # Libvirt configuration options
@@ -98,13 +98,13 @@ Vagrant.configure("2") do |config|
   #SHELL
   if Vagrant::Util::Platform.linux?
     config.vm.provision :ansible do |ansible|
-        ansible.playbook = "vagrant/php71/playbooks/_provision_vm.yml"
+        ansible.playbook = "vagrant/playbooks/_provision_vm.yml"
         #ansible.verbose = "v"
         ansible.limit = "all"
     end
   else
     config.vm.provision "ansible_local" do |ansible|
-        ansible.playbook = "vagrant/php71/playbooks/_provision_vm.yml"
+        ansible.playbook = "vagrant/playbooks/_provision_vm.yml"
         ansible.limit = "all"
     end
   end
